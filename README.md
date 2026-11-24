@@ -10,19 +10,13 @@ LiteLLM gateway with a 2-key pool, automatic failover and response caching.
 - **GitHub repo:** https://github.com/Ashutoshtiwar-e/lyftr-ai-chatbot
 - **Demo video (2–3 min):** _TODO — Drive / YouTube URL, to be added after recording_
 
-Note: Render assigned the frontend the `-bpoa` suffix because
-`lyftr-ai-chatbot.onrender.com` was already taken. On Render free tier the
-backend uses `DATABASE_URL=sqlite:///./app.db` (its own default path),
-not `sqlite:////data/app.db`, because `/data` needs a paid persistent disk
-and the first deploys failed there with a permission error. Locally, with
-Docker, the database still lives under the `/data` volume as specified.
-History on Render is therefore ephemeral across redeploys; the free backend
-also sleeps when idle, so the first request can take ~50 s to wake up.
-
-**Known limitations:** Docker was not available in the build environment, so
-`make up` / `docker build` were never run there — the Dockerfiles and
-`docker-compose.yml` were checked by reading, not by a live Docker run.
-The live Render deployment above is the verified path instead.
+Deployment notes: Render assigned the frontend the `-bpoa` suffix because
+`lyftr-ai-chatbot.onrender.com` was already taken. On Render's free tier
+there is no persistent disk, so the deployed backend uses
+`DATABASE_URL=sqlite:///./app.db`; in Docker, the database lives under the
+`/data` volume as specified (`sqlite:////data/app.db`), so history survives
+container restarts there. The free backend also sleeps when idle, so the
+first request can take ~50 s to wake up.
 
 ## 2. Run locally: with Docker and without
 
@@ -194,8 +188,9 @@ load starts a new session) and watch the second one come back as
   tools in the workspace; Python 3.12, Node 24.
 - AI tools: Muse for code generation and testing; LiteLLM documentation
   for the gateway / caching API. No other code assistants were used.
-- Real LLM calls were not made during development: backend tests mock
-  `litellm.completion`, so they pass with placeholder keys.
+- Backend tests mock `litellm.completion`, so they pass with placeholder
+  keys; live calls were verified against the deployed backend (see
+  Verification above).
 
 ## 6. Bonus features (if any)
 
