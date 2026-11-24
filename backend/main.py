@@ -11,10 +11,14 @@ Real API keys are never stored in this repo.
 
 import hashlib
 import json
+import logging
 import os
 import sqlite3
 import threading
 import time
+
+logger = logging.getLogger("lyftr")
+logging.basicConfig(level=logging.INFO)
 from pathlib import Path
 from typing import Any, Optional
 
@@ -429,6 +433,7 @@ def chat(
                 messages=llm_messages,
                 api_key=api_key,
                 caching=True,
+                max_tokens=1000,
             )
             # Extract reply text (works for both LiteLLM objects and dicts).
             reply = ""
@@ -470,6 +475,12 @@ def chat(
                 "metadata": metadata,
             }
         except Exception as exc:  # 429 / quota / 5xx / any provider failure
+            # Log the failure type only — never the key or its value — so
+            # a 401, 429/quota or 5xx can be told apart in Render logs.
+            logger.warning(
+                "chat provider failed key_id=%s error_type=%s error=%s",
+                key_id, type(exc).__name__, str(exc)[:500],
+            )
             last_error = exc
             fallback_attempts += 1
             continue
@@ -486,6 +497,11 @@ def chat(
                 messages=llm_messages,
                 api_key=openrouter_key,
                 api_base="https://openrouter.ai/api/v1",
+                # OpenRouter rejects a call with no max_tokens: it defaults
+                # to 65536 tokens, which can exceed the account's credits
+                # (402). 1000 is ample for a short reply, including the
+                # model's reasoning tokens.
+                max_tokens=1000,
             )
             reply = ""
             choices = getattr(response, "choices", None)
@@ -526,7 +542,11 @@ def chat(
                     "reply": reply,
                     "metadata": metadata,
                 }
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                "openrouter fallback failed error_type=%s error=%s",
+                type(exc).__name__, str(exc)[:500],
+            )
             pass
 
     # Every key failed — 503, and nothing was added to the history.
