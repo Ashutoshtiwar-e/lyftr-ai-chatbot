@@ -94,9 +94,14 @@ key, in order (`key_1`, then `key_2`), always with the same model
 > would have made every live call fail and return
 > `503 all providers unavailable`. Any provider failure on a key — 429, quota error,
 5xx, or any other exception from LiteLLM — is caught, counted in
-`fallback_attempts`, and the next key is tried. If every key fails the
-endpoint returns `503 {"detail": "all providers unavailable"}` and nothing
-is written to history. The `X-Simulate-Failure` header (only honoured when
+`fallback_attempts`, and the next key is tried. If both Gemini keys fail
+for real, and an `OPENROUTER_API_KEY` is set, the backend tries the same
+model once more through OpenRouter (`openrouter/google/gemini-3.6-flash`,
+reported as `key_3`) — a separate paid route that does not share the
+Gemini free-tier daily quota. The failover simulation never uses it, so
+`X-Simulate-Failure: *=429` still returns the clean 503. If every route
+fails the endpoint returns `503 {"detail": "all providers unavailable"}`
+and nothing is written to history. The `X-Simulate-Failure` header (only honoured when
 `ENABLE_FAILURE_SIMULATION=true`) makes a chosen key behave as if its
 provider returned that status, for that request only, so failover can be
 demonstrated without burning real quota.

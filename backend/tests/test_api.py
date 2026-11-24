@@ -147,6 +147,28 @@ def test_all_keys_fail_503_and_no_history(client):
     assert client.get("/sessions/s-dead/messages").status_code == 404
 
 
+def test_openrouter_fallback_when_gemini_fails(client):
+    os.environ["OPENROUTER_API_KEY"] = "or-test-key"
+
+    def fake_completion(**kwargs):
+        if kwargs.get("model", "").startswith("openrouter/"):
+            return _mock_response(reply="Answer via OpenRouter.")
+        raise RuntimeError("gemini quota exhausted")
+
+    try:
+        with patch("litellm.completion", side_effect=fake_completion):
+            r = client.post("/chat", json={"session_id": "s-or",
+                                           "message": "Hi"})
+    finally:
+        os.environ.pop("OPENROUTER_API_KEY", None)
+    assert r.status_code == 200
+    assert r.json()["reply"] == "Answer via OpenRouter."
+    meta = r.json()["metadata"]
+    assert meta["key_id"] == "key_3"
+    assert meta["fallback_attempts"] == 2
+    assert meta["model"] == "gemini/gemini-3.6-flash"
+
+
 def test_unknown_session_404(client):
     r = client.get("/sessions/no-such-session/messages")
     assert r.status_code == 404
