@@ -35,7 +35,7 @@ def client(tmp_path):
     os.environ["DATABASE_URL"] = f"sqlite:///{db}"
     os.environ["LLM_API_KEYS"] = "test-key-1,test-key-2"
     os.environ["ENABLE_FAILURE_SIMULATION"] = "true"
-    os.environ["LLM_MODEL"] = "gemini/gemini-3.6-flash"
+    os.environ["LLM_MODEL"] = "gemini/gemini-3.5-flash"
     app_module._CACHE.clear()
     app_module.init_db()
     with TestClient(app_module.app, raise_server_exceptions=False) as c:
@@ -60,7 +60,7 @@ def test_chat_live_and_history(client):
     assert body["reply"] == "The capital of France is Paris."
     meta = body["metadata"]
     assert meta["resolution_source"] == "LIVE_INFERENCE"
-    assert meta["model"] == "gemini/gemini-3.6-flash"
+    assert meta["model"] == "gemini/gemini-3.5-flash"
     assert meta["key_id"] == "key_1"
     assert meta["fallback_attempts"] == 0
     assert meta["input_tokens"] == 42
@@ -166,7 +166,7 @@ def test_openrouter_fallback_when_gemini_fails(client):
     meta = r.json()["metadata"]
     assert meta["key_id"] == "key_3"
     assert meta["fallback_attempts"] == 2
-    assert meta["model"] == "gemini/gemini-3.6-flash"
+    assert meta["model"] == "gemini/gemini-3.5-flash"
 
 
 def test_unknown_session_404(client):

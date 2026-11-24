@@ -20,9 +20,6 @@ import time
 logger = logging.getLogger("lyftr")
 logging.basicConfig(level=logging.INFO)
 
-# Temporary diagnostic store: last provider failure per key, no key material.
-# Read via GET /debug/last-failure. Remove this endpoint before submission.
-_LAST_FAILURE: dict[str, dict] = {}
 from pathlib import Path
 from typing import Any, Optional
 
@@ -33,7 +30,11 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 
 DEFAULT_SYSTEM_PROMPT = "You are a helpful AI assistant."
-DEFAULT_MODEL = "gemini/gemini-3.6-flash"
+# gemini-3.6-flash was verified working, but its free-tier quota (20/day,
+# shared across both keys in one Google project) was exhausted on
+# 2026-11-24; gemini-3.5-flash has a separate per-model quota and was
+# verified live on both keys on 2026-11-25.
+DEFAULT_MODEL = "gemini/gemini-3.5-flash"
 
 # ---------------------------------------------------------------------------
 # Configuration (read live from the environment so tests can override it)
@@ -486,11 +487,6 @@ def chat(
                 "chat provider failed key_id=%s error_type=%s error=%s",
                 key_id, type(exc).__name__, str(exc)[:500],
             )
-            _LAST_FAILURE[key_id] = {
-                "error_type": type(exc).__name__,
-                "error": str(exc)[:500],
-                "at": _now_iso(),
-            }
             last_error = exc
             real_failure = True
             fallback_attempts += 1
@@ -505,8 +501,9 @@ def chat(
     openrouter_key = get_openrouter_key()
     if openrouter_key and (not simulated or real_failure):
         try:
+            openrouter_model = "openrouter/google/" + model.split("/", 1)[1]
             response = litellm.completion(
-                model="openrouter/google/gemini-3.6-flash",
+                model=openrouter_model,
                 messages=llm_messages,
                 api_key=openrouter_key,
                 api_base="https://openrouter.ai/api/v1",
@@ -560,21 +557,10 @@ def chat(
                 "openrouter fallback failed error_type=%s error=%s",
                 type(exc).__name__, str(exc)[:500],
             )
-            _LAST_FAILURE["key_3"] = {
-                "error_type": type(exc).__name__,
-                "error": str(exc)[:500],
-                "at": _now_iso(),
-            }
             pass
 
     # Every key failed — 503, and nothing was added to the history.
     raise HTTPException(status_code=503, detail="all providers unavailable")
-
-
-@app.get("/debug/last-failure")
-def debug_last_failure():
-    # Temporary diagnostic only. Remove before submission.
-    return {"failures": _LAST_FAILURE}
 
 
 @app.get("/sessions/{session_id}/messages")

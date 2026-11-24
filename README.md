@@ -69,7 +69,7 @@ make test        # backend pytest (LiteLLM mocked — no real keys needed)
   persistent disk mounted at `/data` and set `DATABASE_URL=sqlite:////data/app.db`.
   On the free plan used here there is no disk, so `DATABASE_URL` is
   `sqlite:///./app.db` instead (see Live URLs above). Set env vars
-  `LLM_API_KEYS` (2 real keys), `LLM_MODEL=gemini/gemini-3.6-flash`,
+  `LLM_API_KEYS` (2 real keys), `LLM_MODEL=gemini/gemini-3.5-flash`,
   `ALLOWED_ORIGINS=<frontend URL>`, `ENABLE_FAILURE_SIMULATION=true`.
   Note: the Dockerfile hard-codes port 8000 for local Docker; on Render the
   start command above uses `$PORT` instead.
@@ -83,23 +83,29 @@ make test        # backend pytest (LiteLLM mocked — no real keys needed)
 
 **Key fallback (LiteLLM).** The backend calls `litellm.completion()` once per
 key, in order (`key_1`, then `key_2`), always with the same model
-`gemini/gemini-3.6-flash`.
+`gemini/gemini-3.5-flash`.
 
-> **Why `gemini-3.6-flash`, not the assignment's example `gemini-2.0-flash`?**
+> **Why `gemini-3.5-flash`, not the assignment's example `gemini-2.0-flash`?**
 > The example model was verified retired on 2026-11-24: a direct Gemini API
 > call to `gemini-2.0-flash` returns 404 "This model … is no longer
 > available", and `gemini-2.5-flash` also 404s for new users. `gemini-3.6-flash`
-> was verified working the same day with a real `generateContent` call, so
-> it is used as the working flash replacement. Shipping with `2.0-flash`
-> would have made every live call fail and return
-> `503 all providers unavailable`. Any provider failure on a key — 429, quota error,
+> was verified working the same day, but its free-tier quota (20 requests/day,
+> shared across both keys in one Google project) was exhausted on 2026-11-24
+> and only resets ~13:30 IST on 2026-11-25. `gemini-3.5-flash` has a separate
+> per-model quota and was verified working on both keys with real
+> `generateContent` calls on 2026-11-25, so it is used as the working flash
+> replacement. Shipping with `2.0-flash` would have made every live call fail
+> and return `503 all providers unavailable`. Any provider failure on a key — 429, quota error,
 5xx, or any other exception from LiteLLM — is caught, counted in
 `fallback_attempts`, and the next key is tried. If both Gemini keys fail
 for real, and an `OPENROUTER_API_KEY` is set, the backend tries the same
-model once more through OpenRouter (`openrouter/google/gemini-3.6-flash`,
+model once more through OpenRouter (`openrouter/google/gemini-3.5-flash`,
 reported as `key_3`) — a separate paid route that does not share the
-Gemini free-tier daily quota. The failover simulation never uses it, so
-`X-Simulate-Failure: *=429` still returns the clean 503. If every route
+Gemini free-tier daily quota. OpenRouter is skipped only when every failure
+was simulated, so `X-Simulate-Failure: *=429` still returns the clean 503;
+if a non-simulated key genuinely fails during a simulation (e.g. key_2
+really quota-hit while key_1 is simulated down), OpenRouter still steps in
+so the chat stays up. If every route
 fails the endpoint returns `503 {"detail": "all providers unavailable"}`
 and nothing is written to history. The `X-Simulate-Failure` header (only honoured when
 `ENABLE_FAILURE_SIMULATION=true`) makes a chosen key behave as if its
