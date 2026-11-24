@@ -20,10 +20,6 @@ import time
 logger = logging.getLogger("lyftr")
 logging.basicConfig(level=logging.INFO)
 
-# Temporary diagnostic store: last provider failure per key, no key material.
-# Read via GET /debug/last-failure. Remove this endpoint before submission.
-_LAST_FAILURE: dict[str, dict] = {}
-
 from pathlib import Path
 from typing import Any, Optional
 
@@ -491,11 +487,6 @@ def chat(
                 "chat provider failed key_id=%s error_type=%s error=%s",
                 key_id, type(exc).__name__, str(exc)[:500],
             )
-            _LAST_FAILURE[key_id] = {
-                "error_type": type(exc).__name__,
-                "error": str(exc)[:500],
-                "at": _now_iso(),
-            }
             last_error = exc
             real_failure = True
             fallback_attempts += 1
@@ -566,21 +557,10 @@ def chat(
                 "openrouter fallback failed error_type=%s error=%s",
                 type(exc).__name__, str(exc)[:500],
             )
-            _LAST_FAILURE["key_3"] = {
-                "error_type": type(exc).__name__,
-                "error": str(exc)[:500],
-                "at": _now_iso(),
-            }
             pass
 
     # Every key failed — 503, and nothing was added to the history.
     raise HTTPException(status_code=503, detail="all providers unavailable")
-
-
-@app.get("/debug/last-failure")
-def debug_last_failure():
-    # Temporary diagnostic only. Remove before submission.
-    return {"failures": _LAST_FAILURE}
 
 
 @app.get("/sessions/{session_id}/messages")

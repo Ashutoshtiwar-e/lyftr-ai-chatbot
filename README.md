@@ -8,7 +8,7 @@ LiteLLM gateway with a 2-key pool, automatic failover and response caching.
 - **Frontend:** https://lyftr-ai-chatbot-bpoa.onrender.com
 - **Backend:** https://lyftr-ai-chatbot-api.onrender.com
 - **GitHub repo:** https://github.com/Ashutoshtiwar-e/lyftr-ai-chatbot
-- **Demo video (2–3 min):** _TODO — Drive / YouTube URL, to be added after recording_
+- **Demo video (2–3 min):** https://drive.google.com/file/d/1aP0hZX1nTVSVZB6eKovwB3JQ2EN7jIM2/view?usp=drive_link
 
 Deployment notes: Render assigned the frontend the `-bpoa` suffix because
 `lyftr-ai-chatbot.onrender.com` was already taken. On Render's free tier
