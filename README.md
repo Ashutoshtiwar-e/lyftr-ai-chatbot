@@ -19,6 +19,11 @@ Docker, the database still lives under the `/data` volume as specified.
 History on Render is therefore ephemeral across redeploys; the free backend
 also sleeps when idle, so the first request can take ~50 s to wake up.
 
+**Known limitations:** Docker was not available in the build environment, so
+`make up` / `docker build` were never run there — the Dockerfiles and
+`docker-compose.yml` were checked by reading, not by a live Docker run.
+The live Render deployment above is the verified path instead.
+
 ## 2. Run locally: with Docker and without
 
 ### With Docker (the required path)
