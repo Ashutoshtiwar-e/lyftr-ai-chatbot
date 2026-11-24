@@ -5,14 +5,19 @@ LiteLLM gateway with a 2-key pool, automatic failover and response caching.
 
 ## 1. Live URLs
 
-> Fill in after deploying to Render (see "Run locally" and the Render notes below).
+- **Frontend:** https://lyftr-ai-chatbot-bpoa.onrender.com
+- **Backend:** https://lyftr-ai-chatbot-api.onrender.com
+- **GitHub repo:** https://github.com/Ashutoshtiwar-e/lyftr-ai-chatbot
+- **Demo video (2–3 min):** _TODO — Drive / YouTube URL, to be added after recording_
 
-- **Frontend:** _TODO — Render static site URL, e.g. https://lyftr-ai-chatbot.onrender.com_
-- **Backend:** _TODO — Render web service URL, e.g. https://lyftr-ai-chatbot-api.onrender.com_
-- **GitHub repo:** _TODO — public repo URL_
-- **Demo video (2–3 min):** _TODO — Drive / YouTube URL_
-
-Until those are filled in, this repo is fully runnable locally (see below).
+Note: Render assigned the frontend the `-bpoa` suffix because
+`lyftr-ai-chatbot.onrender.com` was already taken. On Render free tier the
+backend uses `DATABASE_URL=sqlite:///./app.db` (its own default path),
+not `sqlite:////data/app.db`, because `/data` needs a paid persistent disk
+and the first deploys failed there with a permission error. Locally, with
+Docker, the database still lives under the `/data` volume as specified.
+History on Render is therefore ephemeral across redeploys; the free backend
+also sleeps when idle, so the first request can take ~50 s to wake up.
 
 ## 2. Run locally: with Docker and without
 
@@ -61,9 +66,11 @@ make test        # backend pytest (LiteLLM mocked — no real keys needed)
 
 - **Backend — Render Web Service:** root directory `backend`, build command
   `pip install -r requirements.txt`, start command
-  `uvicorn main:app --host 0.0.0.0 --port $PORT`. Add a persistent disk
-  mounted at `/data`, and set env vars `LLM_API_KEYS` (2 real keys),
-  `LLM_MODEL=gemini/gemini-3.6-flash`, `DATABASE_URL=sqlite:////data/app.db`,
+  `uvicorn main:app --host 0.0.0.0 --port $PORT`. On a paid plan, add a
+  persistent disk mounted at `/data` and set `DATABASE_URL=sqlite:////data/app.db`.
+  On the free plan used here there is no disk, so `DATABASE_URL` is
+  `sqlite:///./app.db` instead (see Live URLs above). Set env vars
+  `LLM_API_KEYS` (2 real keys), `LLM_MODEL=gemini/gemini-3.6-flash`,
   `ALLOWED_ORIGINS=<frontend URL>`, `ENABLE_FAILURE_SIMULATION=true`.
   Note: the Dockerfile hard-codes port 8000 for local Docker; on Render the
   start command above uses `$PORT` instead.
