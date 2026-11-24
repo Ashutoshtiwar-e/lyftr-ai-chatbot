@@ -421,6 +421,7 @@ def chat(
     keys = get_api_keys()
     fallback_attempts = 0
     last_error: Optional[Exception] = None
+    real_failure = False
 
     for idx, api_key in enumerate(keys):
         key_id = f"key_{idx + 1}"
@@ -491,15 +492,18 @@ def chat(
                 "at": _now_iso(),
             }
             last_error = exc
+            real_failure = True
             fallback_attempts += 1
             continue
 
-    # Last resort, only for real provider failures (never when a failover
-    # simulation is in play, so the hook's 503 case still holds): try the
-    # same model through OpenRouter, a separate paid route to Gemini that
-    # does not share the Gemini free-tier daily quota.
+    # Last resort, only for real provider failures: try the same model
+    # through OpenRouter, a separate paid route to Gemini that does not
+    # share the Gemini free-tier daily quota. It is skipped when every
+    # failure was only simulated (so the hook's *=429 case still 503s),
+    # but it runs when a non-simulated key genuinely failed — e.g.
+    # key_1 simulated + key_2 really quota-hit — so the chat stays up.
     openrouter_key = get_openrouter_key()
-    if openrouter_key and not simulated:
+    if openrouter_key and (not simulated or real_failure):
         try:
             response = litellm.completion(
                 model="openrouter/google/gemini-3.6-flash",
